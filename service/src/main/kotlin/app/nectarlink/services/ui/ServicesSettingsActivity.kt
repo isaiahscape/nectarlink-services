@@ -96,8 +96,8 @@ class ServicesSettingsActivity : Activity() {
 
         addHeader(getString(R.string.section_permissions))
         val perms = listOf(
-            Manifest.permission.INJECT_EVENTS,
-            Manifest.permission.CAPTURE_VIDEO_OUTPUT,
+            "android.permission.INJECT_EVENTS",
+            "android.permission.CAPTURE_VIDEO_OUTPUT",
             "android.permission.ADD_TRUSTED_DISPLAY",
             "android.permission.CREATE_VIRTUAL_DEVICE",
             "android.permission.DEVICE_POWER",

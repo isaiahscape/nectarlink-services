@@ -123,11 +123,11 @@ class NectarlinkPrivilegedService : Service() {
         val authorized = verifier.isCallingUidAuthorized()
         var caps = 0L
         if (enabled && authorized) {
-            if (ServicesPrefs.isInputEnabled(this) && hasPerm(Manifest.permission.INJECT_EVENTS)) {
+            if (ServicesPrefs.isInputEnabled(this) && hasPerm("android.permission.INJECT_EVENTS")) {
                 caps = caps or NectarlinkServiceContract.CAP_INPUT_INJECTION
                 caps = caps or NectarlinkServiceContract.CAP_POINTER_FLOW
             }
-            if (ServicesPrefs.isDisplayEnabled(this) && hasPerm(Manifest.permission.CAPTURE_VIDEO_OUTPUT)) {
+            if (ServicesPrefs.isDisplayEnabled(this) && hasPerm("android.permission.CAPTURE_VIDEO_OUTPUT")) {
                 caps = caps or NectarlinkServiceContract.CAP_SCREEN_MIRROR
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     caps = caps or NectarlinkServiceContract.CAP_APP_VIRTUAL_DISPLAY
