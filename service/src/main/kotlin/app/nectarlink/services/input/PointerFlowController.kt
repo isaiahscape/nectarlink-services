@@ -13,9 +13,15 @@ import app.nectarlink.services.PointerScreenInfo
 class PointerFlowController(
     context: Context,
     private val inputController: InputController,
+    private val usePrefs: Boolean = true,
 ) {
     private val appContext = context.applicationContext
-    private val prefs = appContext.getSharedPreferences("pointer_flow", Context.MODE_PRIVATE)
+    private val prefs by lazy {
+        appContext.getSharedPreferences("pointer_flow", Context.MODE_PRIVATE)
+    }
+
+    @Volatile private var savedAccelFallback: String? = null
+    @Volatile private var hasSavedAccelFallback = false
 
     @Volatile private var active = false
     @Volatile private var useUhid = false
@@ -105,8 +111,18 @@ class PointerFlowController(
     }
 
     fun restoreAcceleration() {
-        if (!prefs.contains(KEY_SAVED_ACCEL)) return
-        val was = prefs.getString(KEY_SAVED_ACCEL, null)
+        val was = if (usePrefs) {
+            if (!prefs.contains(KEY_SAVED_ACCEL)) return
+            prefs.getString(KEY_SAVED_ACCEL, null).also {
+                prefs.edit().remove(KEY_SAVED_ACCEL).apply()
+            }
+        } else {
+            if (!hasSavedAccelFallback) return
+            savedAccelFallback.also {
+                hasSavedAccelFallback = false
+                savedAccelFallback = null
+            }
+        }
         runCatching {
             if (was == null || was == "null") {
                 Settings.System.putString(appContext.contentResolver, ACCELERATION, null)
@@ -114,7 +130,6 @@ class PointerFlowController(
                 Settings.System.putString(appContext.contentResolver, ACCELERATION, was)
             }
         }
-        prefs.edit().remove(KEY_SAVED_ACCEL).apply()
     }
 
     @Volatile private var uhidInfo: PointerScreenInfo? = null
@@ -147,11 +162,17 @@ class PointerFlowController(
     }
 
     private fun saveAcceleration() {
-        if (prefs.contains(KEY_SAVED_ACCEL)) return
+        if (usePrefs && prefs.contains(KEY_SAVED_ACCEL)) return
+        if (!usePrefs && hasSavedAccelFallback) return
         val current = runCatching {
             Settings.System.getString(appContext.contentResolver, ACCELERATION)
         }.getOrNull() ?: "null"
-        prefs.edit().putString(KEY_SAVED_ACCEL, current).apply()
+        if (usePrefs) {
+            prefs.edit().putString(KEY_SAVED_ACCEL, current).apply()
+        } else {
+            savedAccelFallback = current
+            hasSavedAccelFallback = true
+        }
     }
 
     private fun injectMouseEvent(action: Int, buttons: Int, wheel: Int) {
@@ -195,15 +216,28 @@ class PointerFlowController(
     }
 
     private fun readScreenSize(): Pair<Int, Int>? = runCatching {
-        val windows = appContext.getSystemService(WindowManager::class.java) ?: return null
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windows.maximumWindowMetrics.bounds.let { it.width() to it.height() }
+        val windows = appContext.getSystemService(WindowManager::class.java)
+        if (windows != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                windows.maximumWindowMetrics.bounds.let { it.width() to it.height() }
+            } else {
+                val metrics = android.util.DisplayMetrics()
+                @Suppress("DEPRECATION")
+                windows.defaultDisplay.getRealMetrics(metrics)
+                metrics.widthPixels to metrics.heightPixels
+            }
         } else {
-            val metrics = android.util.DisplayMetrics()
-            @Suppress("DEPRECATION")
-            windows.defaultDisplay.getRealMetrics(metrics)
-            metrics.widthPixels to metrics.heightPixels
+            readWmSize()
         }
+    }.getOrNull()?.takeIf { it.first > 0 && it.second > 0 } ?: readWmSize()
+
+    private fun readWmSize(): Pair<Int, Int>? = runCatching {
+        val proc = Runtime.getRuntime().exec(arrayOf("wm", "size"))
+        val text = proc.inputStream.bufferedReader().use { it.readText() }
+        proc.waitFor()
+        val matches = Regex("""(\d+)x(\d+)""").findAll(text).toList()
+        val last = matches.lastOrNull() ?: return null
+        last.groupValues[1].toInt() to last.groupValues[2].toInt()
     }.getOrNull()?.takeIf { it.first > 0 && it.second > 0 }
 
     private fun uhidPosition(): Pair<Float, Float>? = runCatching {

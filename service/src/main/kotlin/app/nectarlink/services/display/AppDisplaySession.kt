@@ -35,6 +35,7 @@ class AppDisplaySession(
     fps: Int,
     private val codecName: String = "h264",
     private val wakePhone: () -> Unit = {},
+    private val useShellContext: Boolean = false,
     private val onClosed: (AppDisplaySession) -> Unit = {},
 ) : IDisplaySession.Stub() {
     private data class EncodedSurface(
@@ -299,6 +300,18 @@ class AppDisplaySession(
         out.write(bytes)
     }
 
+    private fun displayManager(): DisplayManager {
+        if (useShellContext) {
+            runCatching {
+                val constructor = DisplayManager::class.java.getDeclaredConstructor(Context::class.java)
+                constructor.isAccessible = true
+                return constructor.newInstance(appContext)
+            }
+        }
+        return appContext.getSystemService(DisplayManager::class.java)
+            ?: error("DisplayManager unavailable")
+    }
+
     private fun createMirrorDisplay(w: Int, h: Int, d: Int, surface: Surface): VirtualDisplay {
         runCatching {
             val m = DisplayManager::class.java.getMethod(
@@ -312,8 +325,7 @@ class AppDisplaySession(
             val vd = m.invoke(null, "NectarlinkScreen", w, h, 0, surface) as? VirtualDisplay
             if (vd != null) return vd
         }
-        val manager = appContext.getSystemService(DisplayManager::class.java)
-            ?: error("DisplayManager unavailable")
+        val manager = displayManager()
         @SuppressLint("WrongConstant")
         return runCatching {
             manager.createVirtualDisplay(
@@ -355,8 +367,7 @@ class AppDisplaySession(
             ownedDisplay(w, h, d, surface, flags)?.let { return it }
         }
         wakePhone()
-        val manager = appContext.getSystemService(DisplayManager::class.java)
-            ?: error("DisplayManager unavailable")
+        val manager = displayManager()
         @SuppressLint("WrongConstant")
         return manager.createVirtualDisplay("Nectarlink", w, h, d, surface, flags)
     }
@@ -419,31 +430,44 @@ class AppDisplaySession(
     }
 
     private fun launchApp(pkg: String, displayId: Int) {
-        val launchIntent = appContext.packageManager.getLaunchIntentForPackage(pkg)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        } ?: Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-            setPackage(pkg)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        }
-        val options = ActivityOptions.makeBasic().apply {
-            setLaunchDisplayId(displayId)
-        }
-        runCatching {
-            appContext.startActivity(launchIntent, options.toBundle())
-        }.onFailure { e ->
-            Log.w(TAG, "direct startActivity failed for $pkg on display $displayId, trying am start", e)
-            runCatching {
-                Runtime.getRuntime().exec(
-                    arrayOf(
-                        "am", "start", "--display", displayId.toString(), "--windowingMode", "1",
-                        "-a", Intent.ACTION_MAIN, "-c", Intent.CATEGORY_LAUNCHER, "-p", pkg,
-                        "-f", (Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK).toString(),
-                    ),
-                ).waitFor()
+        if (!useShellContext) {
+            val launchIntent = appContext.packageManager.getLaunchIntentForPackage(pkg)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            } ?: Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                setPackage(pkg)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
+            val options = ActivityOptions.makeBasic().apply {
+                setLaunchDisplayId(displayId)
+            }
+            val launched = runCatching {
+                appContext.startActivity(launchIntent, options.toBundle())
+                true
+            }.getOrElse { e ->
+                Log.w(TAG, "direct startActivity failed for $pkg on display $displayId, trying am start", e)
+                false
+            }
+            if (launched) return
         }
+        val target = launcherActivity(pkg)?.let { arrayOf("-n", it) }
+            ?: arrayOf("-a", Intent.ACTION_MAIN, "-c", Intent.CATEGORY_LAUNCHER, "-p", pkg)
+        val cmd = arrayOf("am", "start", "--display", displayId.toString(), "--windowingMode", "1") +
+            target + arrayOf("-f", (Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK).toString())
+        runCatching { Runtime.getRuntime().exec(cmd).waitFor() }
     }
+
+    private fun launcherActivity(pkg: String): String? = runCatching {
+        val process = Runtime.getRuntime().exec(
+            arrayOf(
+                "cmd", "package", "resolve-activity", "--brief", "--user", "0",
+                "-a", Intent.ACTION_MAIN, "-c", Intent.CATEGORY_LAUNCHER, pkg,
+            ),
+        )
+        val last = process.inputStream.bufferedReader().readLines().lastOrNull { it.isNotBlank() }?.trim()
+        process.waitFor()
+        last?.takeIf { it.startsWith("$pkg/") }
+    }.getOrNull()
 
     private fun keepActive(display: Int) {
         val power = runCatching {

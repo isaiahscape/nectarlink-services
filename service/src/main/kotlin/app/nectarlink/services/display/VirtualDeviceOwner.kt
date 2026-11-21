@@ -82,8 +82,8 @@ internal class VirtualDeviceOwner private constructor(
 
         fun forget(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-            runCatching {
-                val cdm = context.getSystemService(CompanionDeviceManager::class.java) ?: return@runCatching
+            val disassociated = runCatching {
+                val cdm = companionDeviceManager(context) ?: return@runCatching false
                 for (assoc in cdm.myAssociations) {
                     if (assoc.deviceProfile == APP_STREAMING &&
                         assoc.deviceMacAddress?.toString().equals(ADDRESS, ignoreCase = true)
@@ -91,7 +91,9 @@ internal class VirtualDeviceOwner private constructor(
                         cdm.disassociate(assoc.id)
                     }
                 }
-            }.onFailure {
+                true
+            }.getOrDefault(false)
+            if (!disassociated) {
                 runCatching {
                     Runtime.getRuntime()
                         .exec(arrayOf("cmd", "companiondevice", "disassociate", "0", context.packageName, ADDRESS))
@@ -134,11 +136,22 @@ internal class VirtualDeviceOwner private constructor(
 
         @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
         private fun findAssociation(context: Context): Int? {
-            val cdm = context.getSystemService(CompanionDeviceManager::class.java) ?: return null
+            val cdm = companionDeviceManager(context) ?: return null
             return cdm.myAssociations.firstOrNull {
                 it.deviceProfile == APP_STREAMING &&
                     it.deviceMacAddress?.toString().equals(ADDRESS, ignoreCase = true)
             }?.id
+        }
+
+        private fun companionDeviceManager(context: Context): CompanionDeviceManager? {
+            if (context.packageName != "com.android.shell") {
+                return context.getSystemService(CompanionDeviceManager::class.java)
+            }
+            return runCatching {
+                val serviceType = Class.forName("android.companion.ICompanionDeviceManager")
+                CompanionDeviceManager::class.java.getConstructor(serviceType, Context::class.java)
+                    .newInstance(service("companiondevice", serviceType), context)
+            }.getOrNull()
         }
 
         private fun service(name: String, type: Class<*>): Any {

@@ -112,6 +112,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="false"
@@ -161,6 +162,15 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".service.ShellBridgeReceiver"
+            android:exported="true"
+            android:permission="android.permission.MANAGE_APP_OPS_MODES">
+            <intent-filter>
+                <action android:name="app.nectarlink.services.ACTION_SHELL_READY" />
             </intent-filter>
         </receiver>
     </application>

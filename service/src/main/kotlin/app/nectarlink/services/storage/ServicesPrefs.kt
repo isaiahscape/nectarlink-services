@@ -13,6 +13,8 @@ object ServicesPrefs {
     private const val KEY_CLIPBOARD_ENABLED = "clipboard_enabled"
     private const val KEY_SYSTEM_ENABLED = "system_enabled"
     private const val KEY_APPROVED_CLIENTS = "approved_clients"
+    private const val KEY_SHELL_PORT = "shell_bridge_port"
+    private const val KEY_SHELL_TOKEN = "shell_bridge_token"
 
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -49,5 +51,16 @@ object ServicesPrefs {
     fun revokeClient(context: Context, packageName: String, certSha256: String) {
         val next = approvedClients(context) - "${packageName}:${certSha256.lowercase()}"
         prefs(context).edit().putStringSet(KEY_APPROVED_CLIENTS, next).apply()
+    }
+
+    fun getShellBridgePort(context: Context): Int = prefs(context).getInt(KEY_SHELL_PORT, 0)
+
+    fun getShellBridgeToken(context: Context): String? = prefs(context).getString(KEY_SHELL_TOKEN, null)
+
+    fun setShellBridge(context: Context, port: Int, token: String) {
+        prefs(context).edit()
+            .putInt(KEY_SHELL_PORT, port)
+            .putString(KEY_SHELL_TOKEN, token)
+            .apply()
     }
 }

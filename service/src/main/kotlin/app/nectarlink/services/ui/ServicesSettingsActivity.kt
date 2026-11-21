@@ -13,6 +13,7 @@ import android.widget.Switch
 import android.widget.TextView
 import app.nectarlink.services.R
 import app.nectarlink.services.security.CallerVerifier
+import app.nectarlink.services.shell.ShellBridgeClient
 import app.nectarlink.services.storage.ServicesPrefs
 
 class ServicesSettingsActivity : Activity() {
@@ -34,6 +35,7 @@ class ServicesSettingsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        ShellBridgeClient.restoreAndConnect(this)
         render()
     }
 
@@ -41,11 +43,16 @@ class ServicesSettingsActivity : Activity() {
         container.removeAllViews()
         val isPriv = (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
             (applicationInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        val shellConnected = ShellBridgeClient.isConnected
 
         addHeader(getString(R.string.settings_title))
         addBody(
             if (isPriv) getString(R.string.status_privileged_yes)
             else getString(R.string.status_privileged_no),
+        )
+        addBody(
+            if (shellConnected) "Shell helper (uid 2000): Connected"
+            else "Shell helper (uid 2000): Not connected",
         )
 
         addSwitchRow(
@@ -109,10 +116,23 @@ class ServicesSettingsActivity : Activity() {
             "android.permission.TETHER_PRIVILEGED",
             Manifest.permission.WRITE_SECURE_SETTINGS,
         )
+        val shellBridgedPerms = setOf(
+            "android.permission.INJECT_EVENTS",
+            "android.permission.CAPTURE_VIDEO_OUTPUT",
+            "android.permission.ADD_TRUSTED_DISPLAY",
+            "android.permission.CREATE_VIRTUAL_DEVICE",
+            "android.permission.DEVICE_POWER",
+            "android.permission.READ_CLIPBOARD_IN_BACKGROUND",
+        )
         for (perm in perms) {
             val granted = checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED
             val shortName = perm.removePrefix("android.permission.")
-            addBody("${if (granted) "[OK]" else "[MISSING]"} $shortName")
+            val tag = when {
+                granted -> "[OK]"
+                shellConnected && perm in shellBridgedPerms -> "[OK via shell]"
+                else -> "[MISSING]"
+            }
+            addBody("$tag $shortName")
         }
     }
 
