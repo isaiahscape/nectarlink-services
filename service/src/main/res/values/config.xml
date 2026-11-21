@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string-array name="allowed_client_packages">
+        <item>app.nectarlink</item>
+        <item>app.nectarlink.dev</item>
+    </string-array>
+
+    <string-array name="trusted_client_cert_sha256">
+    </string-array>
+</resources>

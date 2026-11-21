@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package {
+    default_applicable_licenses: ["nectarlink_services_license"],
+}
+
+license {
+    name: "nectarlink_services_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-GPL-3.0-or-later"],
+}
+
+android_library {
+    name: "nectarlink-services-client",
+    sdk_version: "current",
+    min_sdk_version: "26",
+    manifest: "client/src/main/AndroidManifest.xml",
+    srcs: [
+        "client/src/main/aidl/**/*.aidl",
+        "client/src/main/kotlin/**/*.kt",
+    ],
+    aidl: {
+        local_include_dirs: ["client/src/main/aidl"],
+    },
+    static_libs: [
+        "kotlinx_coroutines_android",
+    ],
+}
+
+android_app {
+    name: "NectarlinkServices",
+    package_name: "app.nectarlink.services",
+    privileged: true,
+    system_ext_specific: true,
+    certificate: "platform",
+    platform_apis: true,
+    min_sdk_version: "26",
+    manifest: "service/src/main/AndroidManifest.xml",
+    srcs: [
+        "service/src/main/kotlin/**/*.kt",
+    ],
+    resource_dirs: [
+        "service/src/main/res",
+    ],
+    static_libs: [
+        "nectarlink-services-client",
+        "kotlinx_coroutines_android",
+    ],
+    required: [
+        "privapp-permissions-app.nectarlink.services.xml",
+    ],
+    optimize: {
+        proguard_flags_files: ["service/proguard-rules.pro"],
+    },
+}
+
+prebuilt_etc {
+    name: "privapp-permissions-app.nectarlink.services.xml",
+    sub_dir: "permissions",
+    system_ext_specific: true,
+    src: "aosp/privapp-permissions-app.nectarlink.services.xml",
+    filename_from_src: true,
+}

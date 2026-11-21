@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="app_name">Nectarlink Services</string>
+    <string name="settings_title">Nectarlink Services</string>
+    <string name="settings_summary">Privileged system integration for NectarLink</string>
+    <string name="status_privileged_yes">Installed as privileged system app</string>
+    <string name="status_privileged_no">Not running as privileged system app (install in /system_ext/priv-app with privapp-permissions)</string>
+    <string name="toggle_master">Enable Nectarlink Services</string>
+    <string name="toggle_master_desc">Allow verified NectarLink apps to use system integration without Wireless Debugging or root</string>
+    <string name="toggle_input">Remote touch, keys &amp; gamepad</string>
+    <string name="toggle_display">Screen mirroring &amp; app windows</string>
+    <string name="toggle_audio">Device &amp; call audio streaming</string>
+    <string name="toggle_clipboard">Background clipboard sync</string>
+    <string name="toggle_system">System toggles &amp; app uninstall</string>
+    <string name="section_permissions">Privileged Permissions</string>
+    <string name="section_clients">Detected NectarLink Clients</string>
+    <string name="no_clients_found">No NectarLink app installed yet.</string>
+    <string name="client_trusted_builtin">Trusted (built-in certificate)</string>
+    <string name="client_trusted_same_cert">Trusted (matches service signature)</string>
+    <string name="client_trusted_user">Approved by user</string>
+    <string name="client_untrusted">Not yet approved (debug/custom build)</string>
+    <string name="action_approve">Approve</string>
+    <string name="action_revoke">Revoke</string>
+</resources>

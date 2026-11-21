@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="app.nectarlink.services" />
+        <intent>
+            <action android:name="app.nectarlink.services.ACTION_BIND" />
+        </intent>
+    </queries>
+</manifest>

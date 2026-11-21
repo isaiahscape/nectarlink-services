@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+type nectarlink_services, domain;
+app_domain(nectarlink_services)
+net_domain(nectarlink_services)
+
+allow nectarlink_services uhid_device:chr_file rw_file_perms;
+
+allow nectarlink_services activity_service:service_manager find;
+allow nectarlink_services activity_task_service:service_manager find;
+allow nectarlink_services audioserver_service:service_manager find;
+allow nectarlink_services clipboard_service:service_manager find;
+allow nectarlink_services companion_device_service:service_manager find;
+allow nectarlink_services connectivity_service:service_manager find;
+allow nectarlink_services display_service:service_manager find;
+allow nectarlink_services input_service:service_manager find;
+allow nectarlink_services notification_service:service_manager find;
+allow nectarlink_services package_service:service_manager find;
+allow nectarlink_services power_service:service_manager find;
+allow nectarlink_services statusbar_service:service_manager find;
+allow nectarlink_services surfaceflinger_service:service_manager find;
+allow nectarlink_services tethering_service:service_manager find;
+allow nectarlink_services virtual_device_service:service_manager find;
+allow nectarlink_services wifi_service:service_manager find;
+allow nectarlink_services window_service:service_manager find;
