@@ -19,6 +19,10 @@ object ServicesPrefs {
     private fun prefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private fun devicePrefs(context: Context): SharedPreferences =
+        context.applicationContext.createDeviceProtectedStorageContext()
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
     fun isServiceEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_MASTER_ENABLED, true)
     fun setServiceEnabled(context: Context, on: Boolean) = prefs(context).edit().putBoolean(KEY_MASTER_ENABLED, on).apply()
 
@@ -53,14 +57,28 @@ object ServicesPrefs {
         prefs(context).edit().putStringSet(KEY_APPROVED_CLIENTS, next).apply()
     }
 
-    fun getShellBridgePort(context: Context): Int = prefs(context).getInt(KEY_SHELL_PORT, 0)
+    fun getShellBridgePort(context: Context): Int {
+        val port = devicePrefs(context).getInt(KEY_SHELL_PORT, 0)
+        if (port in 1..65535) return port
+        return runCatching { prefs(context).getInt(KEY_SHELL_PORT, 0) }.getOrDefault(0)
+    }
 
-    fun getShellBridgeToken(context: Context): String? = prefs(context).getString(KEY_SHELL_TOKEN, null)
+    fun getShellBridgeToken(context: Context): String? {
+        val token = devicePrefs(context).getString(KEY_SHELL_TOKEN, null)
+        if (!token.isNullOrBlank()) return token
+        return runCatching { prefs(context).getString(KEY_SHELL_TOKEN, null) }.getOrNull()
+    }
 
     fun setShellBridge(context: Context, port: Int, token: String) {
-        prefs(context).edit()
+        devicePrefs(context).edit()
             .putInt(KEY_SHELL_PORT, port)
             .putString(KEY_SHELL_TOKEN, token)
             .apply()
+        runCatching {
+            prefs(context).edit()
+                .putInt(KEY_SHELL_PORT, port)
+                .putString(KEY_SHELL_TOKEN, token)
+                .apply()
+        }
     }
 }

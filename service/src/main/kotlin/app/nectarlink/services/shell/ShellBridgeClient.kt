@@ -18,6 +18,7 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -65,14 +66,28 @@ object ShellBridgeClient {
     @Volatile
     var onInputBlocked: (() -> Unit)? = null
 
-    @Volatile
-    var onStateChanged: ((Boolean) -> Unit)? = null
+    private val stateListeners = CopyOnWriteArraySet<(Boolean) -> Unit>()
+
+    fun addStateListener(listener: (Boolean) -> Unit) {
+        stateListeners.add(listener)
+    }
+
+    fun removeStateListener(listener: (Boolean) -> Unit) {
+        stateListeners.remove(listener)
+    }
+
+    private fun notifyState(connected: Boolean) {
+        stateListeners.forEach { runCatching { it(connected) } }
+    }
 
     fun restoreAndConnect(context: Context) {
         val savedPort = ServicesPrefs.getShellBridgePort(context)
         val savedToken = ServicesPrefs.getShellBridgeToken(context)
         if (savedPort in 1..65535 && !savedToken.isNullOrBlank()) {
+            Log.i(TAG, "Restoring shell bridge config for port $savedPort")
             configure(savedPort, savedToken)
+        } else {
+            Log.i(TAG, "No saved shell bridge config yet")
         }
     }
 
@@ -108,6 +123,7 @@ object ShellBridgeClient {
             writer.flush()
             val ack = reader.readLine()
             if (ack != "OK") {
+                Log.w(TAG, "Shell bridge handshake failed on port $targetPort: $ack")
                 sock.close()
                 scheduleReconnect()
                 return
@@ -118,7 +134,8 @@ object ShellBridgeClient {
                 controlWriter = writer
                 isConnected = true
             }
-            onStateChanged?.invoke(true)
+            Log.i(TAG, "Connected to uid-2000 shell bridge on port $targetPort")
+            notifyState(true)
 
             thread(isDaemon = true, name = "nl-shell-ctl-read") {
                 try {
@@ -137,7 +154,7 @@ object ShellBridgeClient {
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Shell bridge unavailable on port $targetPort: ${e.message}")
+            Log.w(TAG, "Shell bridge unavailable on port $targetPort: ${e.message}")
             runCatching { sock.close() }
             scheduleReconnect()
         }
@@ -157,7 +174,7 @@ object ShellBridgeClient {
         pending.values.forEach { it.cancel(false) }
         pending.clear()
         if (notify && wasConnected) {
-            onStateChanged?.invoke(false)
+            notifyState(false)
         }
     }
 

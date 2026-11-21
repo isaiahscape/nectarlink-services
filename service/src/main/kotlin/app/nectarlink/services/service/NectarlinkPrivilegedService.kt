@@ -2,14 +2,19 @@
 package app.nectarlink.services.service
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.RemoteCallbackList
+import android.util.Log
 import app.nectarlink.services.IDisplaySession
 import app.nectarlink.services.INectarlinkService
 import app.nectarlink.services.INectarlinkServiceCallback
@@ -43,6 +48,12 @@ class NectarlinkPrivilegedService : Service() {
 
     private val callbacks = RemoteCallbackList<INectarlinkServiceCallback>()
     private val displaySessions = Collections.synchronizedSet(LinkedHashSet<AppDisplaySession>())
+    private val shellStateListener: (Boolean) -> Unit = { notifyStatusChanged() }
+    private val shellReadyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent?) {
+            ShellBridgeReceiver.handleIntent(context, intent)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -67,6 +78,7 @@ class NectarlinkPrivilegedService : Service() {
         )
         pointerFlow.restoreAcceleration()
         VirtualDeviceOwner.forget(this)
+        registerShellReadyReceiver()
         ShellBridgeClient.onClipboardChanged = { text, html, isSensitive ->
             if (ServicesPrefs.isServiceEnabled(this) &&
                 ServicesPrefs.isClipboardEnabled(this) &&
@@ -77,8 +89,12 @@ class NectarlinkPrivilegedService : Service() {
             }
         }
         ShellBridgeClient.onInputBlocked = { notifyInputBlocked() }
-        ShellBridgeClient.onStateChanged = { notifyStatusChanged() }
+        ShellBridgeClient.addStateListener(shellStateListener)
         ShellBridgeClient.restoreAndConnect(this)
+        Log.i(
+            "NectarlinkPrivService",
+            "onCreate: priv=${isPrivilegedSystemApp()} inject=${hasPerm("android.permission.INJECT_EVENTS")} shellConnected=${ShellBridgeClient.isConnected}",
+        )
         if (ServicesPrefs.isServiceEnabled(this) &&
             ServicesPrefs.isClipboardEnabled(this) &&
             hasPerm("android.permission.READ_CLIPBOARD_IN_BACKGROUND")
@@ -87,12 +103,34 @@ class NectarlinkPrivilegedService : Service() {
         }
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun registerShellReadyReceiver() {
+        val filter = IntentFilter(ShellBridgeReceiver.ACTION_SHELL_READY)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                shellReadyReceiver,
+                filter,
+                "android.permission.MANAGE_APP_OPS_MODES",
+                null,
+                RECEIVER_EXPORTED,
+            )
+        } else {
+            registerReceiver(
+                shellReadyReceiver,
+                filter,
+                "android.permission.MANAGE_APP_OPS_MODES",
+                null,
+            )
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(shellReadyReceiver) }
         ShellBridgeClient.onClipboardChanged = null
         ShellBridgeClient.onInputBlocked = null
-        ShellBridgeClient.onStateChanged = null
+        ShellBridgeClient.removeStateListener(shellStateListener)
         clipboardController.stop()
         pointerFlow.stop()
         displayPower.restoreIfNeeded()

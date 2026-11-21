@@ -19,6 +19,7 @@ import app.nectarlink.services.storage.ServicesPrefs
 class ServicesSettingsActivity : Activity() {
     private lateinit var verifier: CallerVerifier
     private lateinit var container: LinearLayout
+    private val shellStateListener: (Boolean) -> Unit = { runOnUiThread { render() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,8 +36,14 @@ class ServicesSettingsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        ShellBridgeClient.addStateListener(shellStateListener)
         ShellBridgeClient.restoreAndConnect(this)
         render()
+    }
+
+    override fun onPause() {
+        ShellBridgeClient.removeStateListener(shellStateListener)
+        super.onPause()
     }
 
     private fun render() {
