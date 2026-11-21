@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Build Nectarlink Services
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version name (optional)
+        required: false
+        default: "0.1.0"
+      version_code:
+        description: Version code (optional)
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Services APK & Client AAR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: "16111833"
+          packages: "platforms;android-37.0 build-tools;37.0.0"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests and lint
+        run: ./gradlew --no-daemon testDebugUnitTest :service:lintDebug
+
+      - name: Prepare signing keystore
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release APK and client AAR
+        env:
+          NECTARLINK_SERVICES_KEYSTORE: ${{ steps.signing.outputs.signed == 'true' && format('{0}/release.jks', runner.temp) || '' }}
+          NECTARLINK_SERVICES_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          NECTARLINK_SERVICES_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'nectarlink' }}
+        run: |
+          VERSION_NAME="${{ github.event.inputs.version || '0.1.0' }}"
+          VERSION_CODE="${{ github.event.inputs.version_code || github.run_number }}"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          fi
+          ./gradlew --no-daemon :service:assembleRelease :client:assembleRelease \
+            -Pservices.version="$VERSION_NAME" \
+            -Pservices.versionCode="$VERSION_CODE"
+
+      - name: Verify APK signature and stage artifacts
+        run: |
+          apk=service/build/outputs/apk/release/service-release.apk
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$apk"
+          mkdir -p out
+          cp "$apk" out/NectarlinkServices.apk
+          cp client/build/outputs/aar/client-release.aar out/nectarlink-services-client.aar
+          (cd out && sha256sum NectarlinkServices.apk nectarlink-services-client.aar > SHA256SUMS.txt)
+          cat out/SHA256SUMS.txt
+
+      - name: Clean up signing keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nectarlink-services
+          path: |
+            out/NectarlinkServices.apk
+            out/nectarlink-services-client.aar
+            out/SHA256SUMS.txt
+          retention-days: 30
