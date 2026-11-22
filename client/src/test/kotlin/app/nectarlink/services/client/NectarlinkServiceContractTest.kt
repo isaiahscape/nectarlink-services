@@ -45,4 +45,12 @@ class NectarlinkServiceContractTest {
         assertFalse(NectarlinkServiceContract.isAllowedShellCommand("am start -n com.android.settings/.Settings", allowed))
         assertFalse(NectarlinkServiceContract.isAllowedShellCommand("id", allowed))
     }
+
+    @Test
+    fun supported_api_version_matches_known_range() {
+        assertTrue(NectarlinkServiceContract.isSupportedApiVersion(NectarlinkServiceContract.API_VERSION))
+        assertFalse(NectarlinkServiceContract.isSupportedApiVersion(0))
+        assertFalse(NectarlinkServiceContract.isSupportedApiVersion(-1))
+        assertFalse(NectarlinkServiceContract.isSupportedApiVersion(NectarlinkServiceContract.API_VERSION + 1))
+    }
 }
