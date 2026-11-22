@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.nectarlink.services"
+        applicationId = "sn.nectarlink.services"
         minSdk = 26
         targetSdk = 37
         versionCode = (findProperty("services.versionCode") as String?)?.toIntOrNull() ?: 1

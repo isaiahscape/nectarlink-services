@@ -10,10 +10,12 @@ class NectarlinkServiceContractTest {
 
     @Test
     fun uninstall_never_targets_nectarlink_or_invalid_packages() {
-        assertTrue(NectarlinkServiceContract.isAllowedUninstallPackage("com.example.app", "app.nectarlink.services"))
-        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink", "app.nectarlink.services"))
-        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink.dev", "app.nectarlink.services"))
-        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink.services", "app.nectarlink.services"))
+        assertTrue(NectarlinkServiceContract.isAllowedUninstallPackage("com.example.app", "sn.nectarlink.services"))
+        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink", "sn.nectarlink.services"))
+        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink.dev", "sn.nectarlink.services"))
+        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("app.nectarlink.services", "sn.nectarlink.services"))
+        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("sn.nectarlink.services", "app.nectarlink"))
+        assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("sn.nectarlink.services.dev", "app.nectarlink"))
         assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("com.example.app; rm -rf /"))
         assertFalse(NectarlinkServiceContract.isAllowedUninstallPackage("invalid"))
     }

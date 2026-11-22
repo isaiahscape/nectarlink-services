@@ -1,6 +1,6 @@
 # Nectarlink Services
 
-**Nectarlink Services** (`app.nectarlink.services`) is a privileged Android system service package for custom ROMs (similar in role to Microsoft's *Link to Windows Service*). It replaces NectarLink's legacy ADB / Wireless Debugging / Shizuku / Root (`Elevated`) helper by providing system-level capabilities directly through a bound AIDL Binder service installed in `/system_ext/priv-app` (or `/system/priv-app`).
+**Nectarlink Services** (`sn.nectarlink.services`) is a privileged Android system service package for custom ROMs (similar in role to Microsoft's *Link to Windows Service*). It replaces NectarLink's legacy ADB / Wireless Debugging / Shizuku / Root (`Elevated`) helper by providing system-level capabilities directly through a bound AIDL Binder service installed in `/system_ext/priv-app` (or `/system/priv-app`).
 
 ## Why a Privileged System Service?
 
@@ -15,9 +15,9 @@ On stock Android, NectarLink achieves Elevated features by spawning `app_process
 | Path | Description |
 |---|---|
 | `client/` | `app.nectarlink.services.client` Android library containing the AIDL contracts (`INectarlinkService`, `IDisplaySession`, `INectarlinkServiceCallback`, `ServiceStatus`, `PointerScreenInfo`) and `NectarlinkServiceClient`. |
-| `service/` | `app.nectarlink.services` privileged APK implementing input injection, screen mirroring, per-app virtual displays, device/call audio streaming, background clipboard sync, physical display power control, and system toggles. |
+| `service/` | `sn.nectarlink.services` privileged APK implementing input injection, screen mirroring, per-app virtual displays, device/call audio streaming, background clipboard sync, physical display power control, and system toggles. |
 | `Android.bp` | AOSP / LineageOS Soong build definition (`NectarlinkServices` + `nectarlink-services-client` + `privapp-permissions`). |
-| `aosp/privapp-permissions-app.nectarlink.services.xml` | Privileged permission allowlist for `/system_ext/etc/permissions/`. |
+| `aosp/privapp-permissions-sn.nectarlink.services.xml` | Privileged permission allowlist for `/system_ext/etc/permissions/`. |
 | `aosp/sepolicy/nectarlink_services.te` | Optional SELinux policy rules for `/dev/uhid` virtual gamepad/mouse and `SurfaceControl` panel power. |
 
 ## Feature Parity with Elevated
@@ -39,14 +39,14 @@ On stock Android, NectarLink achieves Elevated features by spawning `app_process
 
 ## Caller Authentication & Security
 
-Because `app.nectarlink` is distributed and updated independently (e.g., via GitHub Releases) while `app.nectarlink.services` is signed with the ROM's platform key:
+Because `app.nectarlink` is distributed and updated independently (e.g., via GitHub Releases) while `sn.nectarlink.services` is signed with the ROM's platform key:
 
-1. `NectarlinkServiceClient` verifies that `app.nectarlink.services` is installed on the system partition (`FLAG_SYSTEM` or `FLAG_UPDATED_SYSTEM_APP`).
+1. `NectarlinkServiceClient` verifies that `sn.nectarlink.services` is installed on the system partition (`FLAG_SYSTEM` or `FLAG_UPDATED_SYSTEM_APP`).
 2. `CallerVerifier` verifies `Binder.getCallingUid()` on every IPC call against:
    - Package allowlist (`allowed_client_packages` in `service/src/main/res/values/config.xml`: `app.nectarlink`, `app.nectarlink.dev`).
    - Single-signer SHA-256 certificate verification matching:
      - `trusted_client_cert_sha256` in `config.xml` (recommended for ROM maintainers shipping with official NectarLink release signing cert), **or**
-     - `app.nectarlink.services`'s own signing certificate, **or**
+     - `sn.nectarlink.services`'s own signing certificate, **or**
      - An explicit user-approved `(packageName, sha256)` entry toggled in **Nectarlink Services** settings (for local debug/custom builds).
 3. Users can disable the service globally or toggle individual capabilities (input, display, audio, clipboard, system controls) in **Settings › Connected devices › Nectarlink Services**.
 

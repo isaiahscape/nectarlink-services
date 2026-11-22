@@ -164,7 +164,7 @@ class SystemControlManager(
         }
         return runCatching {
             val installer = appContext.packageManager.packageInstaller
-            val intent = Intent("app.nectarlink.services.UNINSTALL_STATUS").setPackage(appContext.packageName)
+            val intent = Intent("sn.nectarlink.services.UNINSTALL_STATUS").setPackage(appContext.packageName)
             val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             val sender = PendingIntent.getBroadcast(appContext, pkg.hashCode(), intent, flags).intentSender
             @Suppress("DEPRECATION")

@@ -19,7 +19,7 @@ class ShellBridgeReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "ShellBridgeReceiver"
-        const val ACTION_SHELL_READY = "app.nectarlink.services.ACTION_SHELL_READY"
+        const val ACTION_SHELL_READY = "sn.nectarlink.services.ACTION_SHELL_READY"
         const val EXTRA_PORT = "shell_port"
         const val EXTRA_TOKEN = "shell_token"
 

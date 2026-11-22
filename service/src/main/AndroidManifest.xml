@@ -126,7 +126,7 @@
             android:name=".service.NectarlinkPrivilegedService"
             android:exported="true">
             <intent-filter>
-                <action android:name="app.nectarlink.services.ACTION_BIND" />
+                <action android:name="sn.nectarlink.services.ACTION_BIND" />
             </intent-filter>
         </service>
 
@@ -135,7 +135,7 @@
             android:exported="true"
             android:label="@string/settings_title">
             <intent-filter>
-                <action android:name="app.nectarlink.services.ACTION_SETTINGS" />
+                <action android:name="sn.nectarlink.services.ACTION_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
@@ -170,7 +170,7 @@
             android:exported="true"
             android:permission="android.permission.MANAGE_APP_OPS_MODES">
             <intent-filter>
-                <action android:name="app.nectarlink.services.ACTION_SHELL_READY" />
+                <action android:name="sn.nectarlink.services.ACTION_SHELL_READY" />
             </intent-filter>
         </receiver>
     </application>

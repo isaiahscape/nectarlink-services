@@ -29,7 +29,7 @@ android_library {
 
 android_app {
     name: "NectarlinkServices",
-    package_name: "app.nectarlink.services",
+    package_name: "sn.nectarlink.services",
     privileged: true,
     system_ext_specific: true,
     certificate: "platform",
@@ -47,7 +47,7 @@ android_app {
         "kotlinx_coroutines_android",
     ],
     required: [
-        "privapp-permissions-app.nectarlink.services.xml",
+        "privapp-permissions-sn.nectarlink.services.xml",
     ],
     optimize: {
         proguard_flags_files: ["service/proguard-rules.pro"],
@@ -55,9 +55,9 @@ android_app {
 }
 
 prebuilt_etc {
-    name: "privapp-permissions-app.nectarlink.services.xml",
+    name: "privapp-permissions-sn.nectarlink.services.xml",
     sub_dir: "permissions",
     system_ext_specific: true,
-    src: "aosp/privapp-permissions-app.nectarlink.services.xml",
+    src: "aosp/privapp-permissions-sn.nectarlink.services.xml",
     filename_from_src: true,
 }
