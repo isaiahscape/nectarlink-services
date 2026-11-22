@@ -16,8 +16,13 @@ On stock Android, NectarLink achieves Elevated features by spawning `app_process
 |---|---|
 | `client/` | `app.nectarlink.services.client` Android library containing the AIDL contracts (`INectarlinkService`, `IDisplaySession`, `INectarlinkServiceCallback`, `ServiceStatus`, `PointerScreenInfo`) and `NectarlinkServiceClient`. |
 | `service/` | `sn.nectarlink.services` privileged APK implementing input injection, screen mirroring, per-app virtual displays, device/call audio streaming, background clipboard sync, physical display power control, and system toggles. |
-| `Android.bp` | AOSP / LineageOS Soong build definition (`NectarlinkServices` + `nectarlink-services-client` + `privapp-permissions`). |
+| `Android.bp` | AOSP / LineageOS Soong build definition (`NectarlinkServices` + `nectarlink-services-client` + `system_ext` / `product` permissions & sysconfig). |
 | `aosp/privapp-permissions-sn.nectarlink.services.xml` | Privileged permission allowlist for `/system_ext/etc/permissions/`. |
+| `aosp/default-permissions-sn.nectarlink.services.xml` | Default permission grants for `sn.nectarlink.services`. |
+| `aosp/sysconfig-sn.nectarlink.services.xml` | Doze/data-saver & hidden-API allowlist for `sn.nectarlink.services`. |
+| `aosp/default-permissions-app.nectarlink.xml` | Optional default permission grants for `app.nectarlink` under `/product/etc/default-permissions/`. |
+| `aosp/sysconfig-app.nectarlink.xml` | Optional Doze/data-saver allowlist for `app.nectarlink` under `/product/etc/sysconfig/`. |
+| `aosp/fetch-client-apk.sh` | Helper to download & verify `thtbee/nectarlink` `stable`, `nightly`, or `canary` APKs into `aosp/prebuilt/` as a `Nectarlink` Soong `android_app_import` module. |
 | `aosp/sepolicy/nectarlink_services.te` | Optional SELinux policy rules for `/dev/uhid` virtual gamepad/mouse and `SurfaceControl` panel power. |
 
 ## Feature Parity with Elevated
@@ -53,11 +58,23 @@ Because `app.nectarlink` is distributed and updated independently (e.g., via Git
 ## Custom ROM Integration (AOSP / LineageOS)
 
 1. Place this repository in your ROM tree, e.g. `packages/apps/NectarlinkServices`.
-2. Add the official NectarLink release signing certificate SHA-256 digest to `service/src/main/res/values/config.xml` (`trusted_client_cert_sha256`).
-3. Add `NectarlinkServices` to `PRODUCT_PACKAGES` in your device/product makefile:
+   - `config.xml` (`trusted_client_cert_sha256`) already trusts official `thtbee/nectarlink` builds (`c7c09a125ca5320b1670e710e798486de08b318127243b2790f3ff13511924f1`). Add additional signing certificate SHA-256 digests there only if shipping custom-signed builds.
+2. Add `NectarlinkServices` to `PRODUCT_PACKAGES` in your device/product makefile:
    ```makefile
    PRODUCT_PACKAGES += \
        NectarlinkServices
+   ```
+3. *(Optional)* Prebundle the official `thtbee/nectarlink` client APK (**stable**, **nightly**, or **canary**) into `/product/app/Nectarlink/` with pre-granted `default-permissions` and `sysconfig` exemptions:
+   ```sh
+   # Pick stable or nightly (or canary):
+   ./aosp/fetch-client-apk.sh --channel stable
+   # or: ./aosp/fetch-client-apk.sh --channel nightly
+   ```
+   Then add `Nectarlink` to `PRODUCT_PACKAGES`:
+   ```makefile
+   PRODUCT_PACKAGES += \
+       NectarlinkServices \
+       Nectarlink
    ```
 4. *(Optional)* Add rules from `aosp/sepolicy/nectarlink_services.te` to enable `/dev/uhid` hardware gamepad/mouse creation (without these, input injection and pointer flow still work via `INJECT_EVENTS` fallbacks).
 5. Open **Nectarlink Services** on the device to verify `[OK]` next to all privileged permissions.

@@ -45,6 +45,15 @@ jobs:
       - name: Run unit tests and lint
         run: ./gradlew --no-daemon testDebugUnitTest :service:lintDebug
 
+      - name: Validate AOSP configs and script
+        run: |
+          if ! command -v xmllint >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-utils
+          fi
+          find aosp -name '*.xml' -print0 | xargs -0 xmllint --noout
+          sh -n aosp/fetch-client-apk.sh
+          shellcheck -s sh aosp/fetch-client-apk.sh
+
       - name: Prepare signing keystore
         id: signing
         env:

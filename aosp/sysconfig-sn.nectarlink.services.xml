@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<config>
+    <allow-in-power-save package="sn.nectarlink.services" />
+    <allow-in-data-usage-save package="sn.nectarlink.services" />
+    <hidden-api-whitelisted-app package="sn.nectarlink.services" />
+</config>

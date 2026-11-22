@@ -48,6 +48,8 @@ android_app {
     ],
     required: [
         "privapp-permissions-sn.nectarlink.services.xml",
+        "default-permissions-sn.nectarlink.services.xml",
+        "sysconfig-sn.nectarlink.services.xml",
     ],
     optimize: {
         proguard_flags_files: ["service/proguard-rules.pro"],
@@ -59,5 +61,37 @@ prebuilt_etc {
     sub_dir: "permissions",
     system_ext_specific: true,
     src: "aosp/privapp-permissions-sn.nectarlink.services.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
+    name: "default-permissions-sn.nectarlink.services.xml",
+    sub_dir: "default-permissions",
+    system_ext_specific: true,
+    src: "aosp/default-permissions-sn.nectarlink.services.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
+    name: "sysconfig-sn.nectarlink.services.xml",
+    sub_dir: "sysconfig",
+    system_ext_specific: true,
+    src: "aosp/sysconfig-sn.nectarlink.services.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
+    name: "default-permissions-app.nectarlink.xml",
+    sub_dir: "default-permissions",
+    product_specific: true,
+    src: "aosp/default-permissions-app.nectarlink.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
+    name: "sysconfig-app.nectarlink.xml",
+    sub_dir: "sysconfig",
+    product_specific: true,
+    src: "aosp/sysconfig-app.nectarlink.xml",
     filename_from_src: true,
 }

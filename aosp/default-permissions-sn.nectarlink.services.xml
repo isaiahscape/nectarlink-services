@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<exceptions>
+    <exception package="sn.nectarlink.services">
+        <permission name="android.permission.BLUETOOTH_CONNECT" fixed="false" />
+    </exception>
+</exceptions>

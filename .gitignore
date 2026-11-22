@@ -15,6 +15,7 @@ signing.properties
 **/build/
 local.properties
 captures/
+aosp/prebuilt/
 *.apk
 *.aab
 *.ap_
