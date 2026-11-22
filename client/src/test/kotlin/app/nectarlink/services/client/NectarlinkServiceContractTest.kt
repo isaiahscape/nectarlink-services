@@ -52,5 +52,26 @@ class NectarlinkServiceContractTest {
         assertFalse(NectarlinkServiceContract.isSupportedApiVersion(0))
         assertFalse(NectarlinkServiceContract.isSupportedApiVersion(-1))
         assertFalse(NectarlinkServiceContract.isSupportedApiVersion(NectarlinkServiceContract.API_VERSION + 1))
+
+        val full35 = NectarlinkServiceContract.requiredElevatedCapabilities(35)
+        assertTrue(NectarlinkServiceContract.hasAllRequiredCapabilities(full35, 35))
+        assertFalse(
+            NectarlinkServiceContract.hasAllRequiredCapabilities(
+                full35 and NectarlinkServiceContract.CAP_CLIPBOARD_SYNC.inv(),
+                35,
+            ),
+        )
+        assertFalse(
+            NectarlinkServiceContract.hasAllRequiredCapabilities(
+                full35 and NectarlinkServiceContract.CAP_APP_VIRTUAL_DISPLAY.inv(),
+                35,
+            ),
+        )
+        assertTrue(
+            NectarlinkServiceContract.hasAllRequiredCapabilities(
+                NectarlinkServiceContract.CORE_ELEVATED_CAPABILITIES,
+                29,
+            ),
+        )
     }
 }
