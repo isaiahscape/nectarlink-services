@@ -7,5 +7,7 @@
     </string-array>
 
     <string-array name="trusted_client_cert_sha256">
+        <item>c7c09a125ca5320b1670e710e798486de08b318127243b2790f3ff13511924f1</item>
+        <item>e055b7e6a622168da36e7b9f730369c8f140e5ba87df1e16f31fd754434eea0d</item>
     </string-array>
 </resources>
