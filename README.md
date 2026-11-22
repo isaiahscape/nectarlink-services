@@ -58,19 +58,23 @@ Because `app.nectarlink` is distributed and updated independently (e.g., via Git
 ## Custom ROM Integration (AOSP / LineageOS)
 
 1. Place this repository in your ROM tree, e.g. `packages/apps/NectarlinkServices`.
-   - `config.xml` (`trusted_client_cert_sha256`) already trusts official `thtbee/nectarlink` builds (`c7c09a125ca5320b1670e710e798486de08b318127243b2790f3ff13511924f1`). Add additional signing certificate SHA-256 digests there only if shipping custom-signed builds.
-2. Add `NectarlinkServices` to `PRODUCT_PACKAGES` in your device/product makefile:
+   - `config.xml` (`trusted_client_cert_sha256`) already trusts official `thtbee/nectarlink` builds (`c7c09a125ca5320b1670e710e798486de08b318127243b2790f3ff13511924f1`).
+   - Upstream `thtbee/nectarlink` (`TRUSTED_SERVICE_CERT_SHA256`) pins `e055b7e6a622168da36e7b9f730369c8f140e5ba87df1e16f31fd754434eea0d` and `c7c09a125ca5320b1670e710e798486de08b318127243b2790f3ff13511924f1`. If your ROM builds `NectarlinkServices` from source with `certificate: "platform"`, official unmodified `thtbee/nectarlink` APKs will reject that platform key unless `NectarlinkServices` is signed with one of the pinned certs (or uses a matching custom client build).
+2. **Option A1 (Recommended when bundling official `thtbee/nectarlink` APKs):** Fetch the presigned `thtbee/nectarlink` (`stable`, `nightly`, or `canary`) APK together with the release-signed `NectarlinkServices.apk` (`e055b7e6...`) into `aosp/prebuilt/`:
+   ```sh
+   ./aosp/fetch-client-apk.sh --channel stable --with-service
+   # or for nightly / canary:
+   # ./aosp/fetch-client-apk.sh --channel nightly --with-service
+   # or provide a local release-signed service APK:
+   # ./aosp/fetch-client-apk.sh --channel stable --service-apk /path/to/NectarlinkServices.apk
+   ```
+   Then add the prebuilt targets to `PRODUCT_PACKAGES`:
    ```makefile
    PRODUCT_PACKAGES += \
-       NectarlinkServices
+       NectarlinkServicesPrebuilt \
+       Nectarlink
    ```
-3. *(Optional)* Prebundle the official `thtbee/nectarlink` client APK (**stable**, **nightly**, or **canary**) into `/product/app/Nectarlink/` with pre-granted `default-permissions` and `sysconfig` exemptions:
-   ```sh
-   # Pick stable or nightly (or canary):
-   ./aosp/fetch-client-apk.sh --channel stable
-   # or: ./aosp/fetch-client-apk.sh --channel nightly
-   ```
-   Then add `Nectarlink` to `PRODUCT_PACKAGES`:
+3. **Option A2 (Source build signed with release key, or custom client builds):** Fetch just the client APK if desired (`./aosp/fetch-client-apk.sh --channel stable`), set `certificate:` in `Android.bp` to your local release `.x509.pem`/`.pk8` keypair (converted from `nectarlink-release.jks`), or keep `certificate: "platform"` when pairing with a custom `nectarlink` build that trusts your platform cert:
    ```makefile
    PRODUCT_PACKAGES += \
        NectarlinkServices \
