@@ -15,8 +15,8 @@ android {
         versionName = (findProperty("services.version") as String?) ?: "0.1.0"
     }
 
-    val keystorePath = System.getenv("NECTARLINK_SERVICES_KEYSTORE")
-        ?: System.getenv("NECTARLINK_KEYSTORE")
+    val keystorePath = System.getenv("NECTARLINK_SERVICES_KEYSTORE")?.takeIf { it.isNotBlank() }
+        ?: System.getenv("NECTARLINK_KEYSTORE")?.takeIf { it.isNotBlank() }
     val keystore = keystorePath?.let(::file)?.takeIf { it.exists() }
     val keystorePassword = System.getenv("NECTARLINK_SERVICES_KEYSTORE_PASSWORD")
         ?: System.getenv("NECTARLINK_KEYSTORE_PASSWORD")
