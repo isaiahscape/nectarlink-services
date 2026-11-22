@@ -70,6 +70,8 @@ class NectarlinkPrivilegedService : Service() {
             }
         }
         protocolAdapter = InputServerProtocolAdapter(
+            this,
+            verifier,
             inputController,
             pointerFlow,
             displayPower,
@@ -268,31 +270,38 @@ class NectarlinkPrivilegedService : Service() {
         override fun provisionAppPermissions(targetPackage: String?): Boolean {
             verifier.requireAuthorized()
             val pkg = targetPackage ?: return false
-            if (pkg !in verifier.allowedPackages) return false
+            if (!NectarlinkServiceContract.isAllowedProvisionPackage(pkg, verifier.allowedPackages) ||
+                !verifier.isCallingPackage(pkg)
+            ) {
+                return false
+            }
             return systemControl.provisionAppPermissions(pkg)
         }
 
         override fun injectTouch(displayId: Int, action: Int, x: Float, y: Float): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
+            if (!NectarlinkServiceContract.isAllowedTouch(displayId, action, x, y)) return false
             if (useShellInput()) return ShellBridgeClient.injectTouch(displayId, action, x, y)
             return inputController.touch(displayId, action, x, y)
         }
 
         override fun injectScroll(displayId: Int, x: Float, y: Float, dx: Float, dy: Float): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
+            if (!NectarlinkServiceContract.isAllowedScroll(displayId, x, y, dx, dy)) return false
             if (useShellInput()) return ShellBridgeClient.injectScroll(displayId, x, y, dx, dy)
             return inputController.scroll(displayId, x, y, dx, dy)
         }
 
         override fun injectKey(displayId: Int, keyCode: Int, metaState: Int): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
+            if (!NectarlinkServiceContract.isAllowedKey(displayId, keyCode)) return false
             if (useShellInput()) return ShellBridgeClient.injectKey(displayId, keyCode, metaState)
             return inputController.key(displayId, keyCode, metaState)
         }
 
         override fun injectText(displayId: Int, text: String?): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
-            if (text == null) return false
+            if (text == null || !NectarlinkServiceContract.isAllowedText(displayId, text)) return false
             if (useShellInput()) return ShellBridgeClient.injectText(displayId, text)
             return inputController.text(displayId, text)
         }
@@ -308,6 +317,7 @@ class NectarlinkPrivilegedService : Service() {
             rt: Int,
         ): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
+            if (!NectarlinkServiceContract.isAllowedGamepad(displayId, lx, ly, rx, ry, lt, rt)) return false
             if (useShellInput()) return ShellBridgeClient.injectGamepad(displayId, buttons, lx, ly, rx, ry, lt, rt)
             return inputController.gamepad(displayId, buttons, lx, ly, rx, ry, lt, rt)
         }
@@ -315,6 +325,7 @@ class NectarlinkPrivilegedService : Service() {
         override fun pointerStart(edge: String?, y: Float): PointerScreenInfo? {
             verifier.requireAuthorized(ServicesPrefs.isInputEnabled(this@NectarlinkPrivilegedService))
             val cleanEdge = edge ?: return null
+            if (!NectarlinkServiceContract.isAllowedPointerStart(cleanEdge, y)) return null
             if (useShellInput()) return ShellBridgeClient.pointerStart(cleanEdge, y)
             return pointerFlow.start(cleanEdge, y)
         }
@@ -349,19 +360,19 @@ class NectarlinkPrivilegedService : Service() {
             codec: String?,
         ): IDisplaySession? {
             verifier.requireAuthorized(ServicesPrefs.isDisplayEnabled(this@NectarlinkPrivilegedService))
-            val w = width.coerceIn(16, 4096)
-            val h = height.coerceIn(16, 4096)
-            val d = dpi.coerceIn(72, 1000)
             val c = codec ?: "h264"
+            if (!NectarlinkServiceContract.isAllowedDisplayRequest(width, height, dpi, bitrate, fps, c)) {
+                return null
+            }
             if (useShellDisplay()) {
-                return ShellBridgeClient.openDisplaySession("-", w, h, d, bitrate, fps, c)
+                return ShellBridgeClient.openDisplaySession("-", width, height, dpi, bitrate, fps, c)
             }
             val session = AppDisplaySession(
                 context = this@NectarlinkPrivilegedService,
                 pkg = "-",
-                initialWidth = w,
-                initialHeight = h,
-                initialDpi = d,
+                initialWidth = width,
+                initialHeight = height,
+                initialDpi = dpi,
                 bitrate = bitrate,
                 fps = fps,
                 codecName = c,
@@ -382,20 +393,22 @@ class NectarlinkPrivilegedService : Service() {
             codec: String?,
         ): IDisplaySession? {
             verifier.requireAuthorized(ServicesPrefs.isDisplayEnabled(this@NectarlinkPrivilegedService))
-            val targetPkg = pkg?.takeIf { it.isNotBlank() && it != "-" } ?: return null
-            val w = width.coerceIn(16, 4096)
-            val h = height.coerceIn(16, 4096)
-            val d = dpi.coerceIn(72, 1000)
+            val targetPkg = pkg ?: return null
             val c = codec ?: "h264"
+            if (!NectarlinkServiceContract.isValidPackageName(targetPkg) ||
+                !NectarlinkServiceContract.isAllowedDisplayRequest(width, height, dpi, bitrate, fps, c)
+            ) {
+                return null
+            }
             if (useShellDisplay()) {
-                return ShellBridgeClient.openDisplaySession(targetPkg, w, h, d, bitrate, fps, c)
+                return ShellBridgeClient.openDisplaySession(targetPkg, width, height, dpi, bitrate, fps, c)
             }
             val session = AppDisplaySession(
                 context = this@NectarlinkPrivilegedService,
                 pkg = targetPkg,
-                initialWidth = w,
-                initialHeight = h,
-                initialDpi = d,
+                initialWidth = width,
+                initialHeight = height,
+                initialDpi = dpi,
                 bitrate = bitrate,
                 fps = fps,
                 codecName = c,
@@ -469,28 +482,41 @@ class NectarlinkPrivilegedService : Service() {
 
         override fun setScreenBrightness(brightness: Int): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isSystemEnabled(this@NectarlinkPrivilegedService))
+            if (!NectarlinkServiceContract.isAllowedBrightness(brightness)) return false
             return systemControl.setScreenBrightness(brightness)
         }
 
         override fun setMusicVolume(index: Int): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isSystemEnabled(this@NectarlinkPrivilegedService))
+            if (index < 0) return false
             return systemControl.setMusicVolume(index)
         }
 
         override fun uninstallPackage(pkg: String?): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isSystemEnabled(this@NectarlinkPrivilegedService))
-            return if (pkg != null) systemControl.uninstallPackage(pkg) else false
+            if (pkg == null) return false
+            if (!NectarlinkServiceContract.isAllowedUninstallPackage(pkg, packageName) ||
+                pkg in verifier.allowedPackages
+            ) {
+                return false
+            }
+            return systemControl.uninstallPackage(pkg)
         }
 
         override fun launchActivityFromBackground(pkg: String?, activityClass: String?): Boolean {
             verifier.requireAuthorized(ServicesPrefs.isSystemEnabled(this@NectarlinkPrivilegedService))
-            if (pkg == null || activityClass == null || pkg !in verifier.allowedPackages) return false
+            if (pkg == null || activityClass == null) return false
+            if (!NectarlinkServiceContract.isAllowedBackgroundLaunch(pkg, activityClass, verifier.allowedPackages) ||
+                !verifier.isCallingPackage(pkg)
+            ) {
+                return false
+            }
             return systemControl.launchActivityFromBackground(pkg, activityClass)
         }
 
         override fun openInputServerChannel(): ParcelFileDescriptor {
             verifier.requireAuthorized()
-            return protocolAdapter.openChannel()
+            return protocolAdapter.openChannel(verifier.packagesForCallingUid())
         }
     }
 }

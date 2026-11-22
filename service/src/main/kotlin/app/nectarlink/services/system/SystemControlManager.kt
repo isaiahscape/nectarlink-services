@@ -19,6 +19,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
+import app.nectarlink.services.client.NectarlinkServiceContract
 import app.nectarlink.services.input.InputController
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicBoolean
@@ -31,7 +32,6 @@ class SystemControlManager(
 ) {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val packageNameRegex = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+")
 
     @Volatile private var volumeTarget = -1
     private val steppingVolume = AtomicBoolean(false)
@@ -106,7 +106,7 @@ class SystemControlManager(
     }
 
     fun setScreenBrightness(brightness: Int): Boolean {
-        if (brightness !in 0..255) return false
+        if (!NectarlinkServiceContract.isAllowedBrightness(brightness)) return false
         return runCatching {
             Settings.System.putInt(appContext.contentResolver, Settings.System.SCREEN_BRIGHTNESS, brightness)
         }.onFailure {
@@ -115,6 +115,7 @@ class SystemControlManager(
     }
 
     fun setMusicVolume(index: Int): Boolean {
+        if (index < 0) return false
         val am = appContext.getSystemService(AudioManager::class.java) ?: return false
         val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val clamped = index.coerceIn(0, max)
@@ -158,8 +159,7 @@ class SystemControlManager(
     }
 
     fun uninstallPackage(pkg: String): Boolean {
-        if (!packageNameRegex.matches(pkg)) return false
-        if (pkg == appContext.packageName || pkg == OWN_NECTARLINK_PKG || pkg.startsWith("$OWN_NECTARLINK_PKG.")) {
+        if (!NectarlinkServiceContract.isAllowedUninstallPackage(pkg, appContext.packageName)) {
             return false
         }
         return runCatching {
@@ -176,7 +176,7 @@ class SystemControlManager(
     }
 
     fun launchActivityFromBackground(pkg: String, activityClass: String): Boolean {
-        if (!packageNameRegex.matches(pkg) || activityClass.isBlank()) return false
+        if (!NectarlinkServiceContract.isAllowedBackgroundLaunch(pkg, activityClass)) return false
         return runCatching {
             val intent = Intent().apply {
                 component = ComponentName(pkg, activityClass)
@@ -190,7 +190,7 @@ class SystemControlManager(
     }
 
     fun provisionAppPermissions(targetPackage: String): Boolean {
-        if (!packageNameRegex.matches(targetPackage)) return false
+        if (!NectarlinkServiceContract.isValidPackageName(targetPackage)) return false
         val info = runCatching { appContext.packageManager.getApplicationInfo(targetPackage, 0) }.getOrNull()
             ?: return false
         val uid = info.uid
@@ -252,7 +252,6 @@ class SystemControlManager(
 
     companion object {
         private const val TAG = "SystemControlManager"
-        private const val OWN_NECTARLINK_PKG = "app.nectarlink"
         private const val VOLUME_POLL_MS = 30L
         private const val VOLUME_SETTLE_MS = 600L
         private const val MAX_VOLUME_PRESSES = 200

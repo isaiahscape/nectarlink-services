@@ -12,6 +12,7 @@ import android.text.Html
 import android.text.Spanned
 import android.text.style.CharacterStyle
 import android.util.Base64
+import app.nectarlink.services.client.NectarlinkServiceContract
 import app.nectarlink.services.display.AppDisplaySession
 import app.nectarlink.services.display.DisplayPowerController
 import app.nectarlink.services.display.VirtualDeviceOwner
@@ -204,7 +205,13 @@ object ShellBridgeServer {
                     val a = parts[2].toIntOrNull()
                     val x = parts[3].toFloatOrNull()
                     val y = parts[4].toFloatOrNull()
-                    if (d != null && a != null && x != null && y != null) inputController.touch(d, a, x, y) else false
+                    if (d != null && a != null && x != null && y != null &&
+                        NectarlinkServiceContract.isAllowedTouch(d, a, x, y)
+                    ) {
+                        inputController.touch(d, a, x, y)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -217,7 +224,9 @@ object ShellBridgeServer {
                     val y = parts[3].toFloatOrNull()
                     val dx = parts[4].toFloatOrNull()
                     val dy = parts[5].toFloatOrNull()
-                    if (d != null && x != null && y != null && dx != null && dy != null) {
+                    if (d != null && x != null && y != null && dx != null && dy != null &&
+                        NectarlinkServiceContract.isAllowedScroll(d, x, y, dx, dy)
+                    ) {
                         inputController.scroll(d, x, y, dx, dy)
                     } else {
                         false
@@ -232,7 +241,11 @@ object ShellBridgeServer {
                     val d = parts[1].toIntOrNull()
                     val code = parts[2].toIntOrNull()
                     val meta = parts[3].toIntOrNull()
-                    if (d != null && code != null && meta != null) inputController.key(d, code, meta) else false
+                    if (d != null && code != null && meta != null && NectarlinkServiceContract.isAllowedKey(d, code)) {
+                        inputController.key(d, code, meta)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -244,7 +257,11 @@ object ShellBridgeServer {
                     val decoded = runCatching {
                         String(Base64.decode(parts[2], Base64.NO_WRAP), Charsets.UTF_8)
                     }.getOrNull()
-                    if (d != null && decoded != null) inputController.text(d, decoded) else false
+                    if (d != null && decoded != null && NectarlinkServiceContract.isAllowedText(d, decoded)) {
+                        inputController.text(d, decoded)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -253,7 +270,11 @@ object ShellBridgeServer {
             "GAMEPAD" -> {
                 val ok = if (parts.size >= 9) {
                     val nums = parts.subList(1, 9).mapNotNull { it.toIntOrNull() }
-                    if (nums.size == 8) {
+                    if (nums.size == 8 &&
+                        NectarlinkServiceContract.isAllowedGamepad(
+                            nums[0], nums[2], nums[3], nums[4], nums[5], nums[6], nums[7],
+                        )
+                    ) {
                         inputController.gamepad(
                             nums[0], nums[1], nums[2], nums[3],
                             nums[4], nums[5], nums[6], nums[7],
@@ -269,7 +290,11 @@ object ShellBridgeServer {
             "PSTART" -> {
                 val edge = parts.getOrNull(1)
                 val y = parts.getOrNull(2)?.toFloatOrNull()
-                val info = if (edge != null && y != null) pointerFlow.start(edge, y) else null
+                val info = if (edge != null && y != null && NectarlinkServiceContract.isAllowedPointerStart(edge, y)) {
+                    pointerFlow.start(edge, y)
+                } else {
+                    null
+                }
                 if (info != null) "$reqId ${info.width} ${info.height} ${info.scale}" else "$reqId ERR"
             }
             "PMOVE" -> {
@@ -330,13 +355,14 @@ object ShellBridgeServer {
     private fun serveDisplay(sock: Socket, reader: BufferedReader, request: String) {
         val parts = request.split(' ')
         if (parts.size < 7) return
-        val w = parts[1].toIntOrNull()?.coerceIn(16, 4096) ?: return
-        val h = parts[2].toIntOrNull()?.coerceIn(16, 4096) ?: return
-        val dpi = parts[3].toIntOrNull()?.coerceIn(72, 1000) ?: return
+        val w = parts[1].toIntOrNull() ?: return
+        val h = parts[2].toIntOrNull() ?: return
+        val dpi = parts[3].toIntOrNull() ?: return
         val bitrate = parts[4].toIntOrNull() ?: return
         val fps = parts[5].toIntOrNull() ?: return
-        val pkg = parts[6].takeIf { it.isNotBlank() } ?: return
-        val codec = parts.getOrNull(7)?.takeIf { it in setOf("h264", "h265", "av1") } ?: "h264"
+        val pkg = parts[6].takeIf { it == "-" || NectarlinkServiceContract.isValidPackageName(it) } ?: return
+        val codec = parts.getOrNull(7) ?: "h264"
+        if (!NectarlinkServiceContract.isAllowedDisplayRequest(w, h, dpi, bitrate, fps, codec)) return
 
         lateinit var session: AppDisplaySession
         session = AppDisplaySession(

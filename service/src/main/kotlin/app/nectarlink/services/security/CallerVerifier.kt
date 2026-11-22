@@ -50,6 +50,17 @@ class CallerVerifier(context: Context) {
         return packages.any { pkg -> pkg in allowedPackages && trustKindFor(pkg) != TrustKind.UNTRUSTED }
     }
 
+    fun isCallingPackage(packageName: String, uid: Int = Binder.getCallingUid()): Boolean {
+        if (uid == Process.myUid() || uid == Process.SYSTEM_UID) return true
+        val packages = pm.getPackagesForUid(uid) ?: return false
+        return packageName in packages
+    }
+
+    fun packagesForCallingUid(uid: Int = Binder.getCallingUid()): Set<String> {
+        if (uid == Process.myUid() || uid == Process.SYSTEM_UID) return allowedPackages
+        return pm.getPackagesForUid(uid)?.toSet().orEmpty()
+    }
+
     fun requireAuthorized(featureEnabled: Boolean = true) {
         if (!ServicesPrefs.isServiceEnabled(appContext)) {
             throw SecurityException("Nectarlink Services is disabled by the user")
